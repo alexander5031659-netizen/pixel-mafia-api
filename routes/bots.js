@@ -114,4 +114,37 @@ router.get('/all', authMiddleware, async (req, res) => {
     }
 });
 
+// Get pending bots (for local panel polling)
+router.get('/pending', async (req, res) => {
+    try {
+        // Bots that need to be started or stopped
+        const bots = await Bot.find({
+            estado: { $in: ['creado', 'pendiente_iniciar', 'pendiente_detener'] }
+        });
+        res.json({ bots });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Update bot status from local panel (no auth required - called by panel)
+router.post('/:id/panel-status', async (req, res) => {
+    try {
+        const { estado, pid, logs } = req.body;
+        const bot = await Bot.findOneAndUpdate(
+            { id: req.params.id },
+            { estado, pid, logs, ultimaActividad: new Date() },
+            { new: true }
+        );
+
+        if (!bot) {
+            return res.status(404).json({ error: 'Bot not found' });
+        }
+
+        res.json({ ok: true, bot });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 module.exports = router;
